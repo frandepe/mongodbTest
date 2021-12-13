@@ -68,6 +68,10 @@ app.get("/api/user", async (req, res) => {
   }
 });
 
+app.get("/api/hola", (req, res) => {
+  res.send("Chau");
+});
+
 app.get("/api/user/:id", async (req, res) => {
   try {
     const { id } = req.params;
@@ -135,3 +139,6 @@ app.listen(PORT, () => {
 // que es __v ???
 // handle-bars sirve??
 // que es req, res????
+
+// Heroku no sabe como correr nuestra aplicacion
+// Con el Procfile le indicamos donde heroku tiene que correr la aplicacion
