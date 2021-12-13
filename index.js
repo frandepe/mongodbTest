@@ -4,15 +4,17 @@ const cors = require("cors");
 const app = express();
 const PORT = process.env.PORT || 3100;
 const mongoose = require("mongoose");
-
 const { UserModel } = require("./schemas/User");
+
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config();
+}
 
 // Atlas te tira la URL de coneccion asi:
 // mongosh "mongodb+srv://cluster0.tsovy.mongodb.net/myFirstDatabase" --username prueback1
 
 // Hay que modificarlo de la siguiente manera:
-const uri =
-  "mongodb+srv://prueback1:pass3969@cluster0.tsovy.mongodb.net/myFirstDatabase";
+const uri = process.env.PASSWORD;
 
 mongoose.connect(uri).then((resp) => {
   console.log("me conecte");
