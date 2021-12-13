@@ -12,8 +12,11 @@ const UserSchema = new Schema({
     index: { unique: true, dropDups: true },
   },
   password: { type: String, required: [true, "Pasame el pass"] },
-  age: { type: Number, default: 20 },
+  firstName: { type: String, required: [true, "Pasame el name"] },
+  lastName: { type: String, required: [true, "Pasame el apellido"] },
+  age: { type: Number },
   createdDate: { type: Date, default: new Date() },
+  enabled: { type: Boolean, default: true },
 });
 
 // Este metodo es para evitar traer algunos campos de la db
