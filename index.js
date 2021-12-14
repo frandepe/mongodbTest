@@ -5,6 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3100;
 const mongoose = require("mongoose");
 const { UserModel } = require("./schemas/User");
+const { generateJWT } = require("./utils/jwt");
 
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
@@ -13,7 +14,7 @@ if (process.env.NODE_ENV !== "production") {
 // Atlas te tira la URL de coneccion asi:
 // mongosh "mongodb+srv://cluster0.tsovy.mongodb.net/myFirstDatabase" --username prueback1
 
-// Hay que modificarlo de la siguiente manera:
+// Hay que modificarlo de la siguiente manera (esta en el .env):
 const uri = process.env.PASSWORD;
 
 mongoose.connect(uri).then((resp) => {
@@ -28,29 +29,19 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors());
 
-// connectando con la db de mongo 3T
-// la db se va a generar cuando insertemos algo
-// const connectDB = async () => {
-//   try {
-//     await mongoose.connect(`mongodb://localhost:27017/test`);
-//     console.log("me conecte");
-//   } catch (error) {
-//     console.log(error);
-//   }
-// };
-
-// connectDB();
-
 // routes
 app.post("/api/user", async (req, res) => {
   try {
     const { email, password, age, firstName, lastName } = req.body;
+    const token = await generateJWT({ firstName, lastName, email });
+    console.log("token:", token);
     const created = await new UserModel({
       email,
       password,
       age,
       firstName,
       lastName,
+      token,
     }).save();
     res.send(created);
   } catch (err) {
@@ -70,8 +61,12 @@ app.get("/api/user", async (req, res) => {
   }
 });
 
-app.get("/api/hola", (req, res) => {
-  res.send("Chau");
+app.get("/api/find", async (req, res) => {
+  //busco usuarios que en su email contenga la cadena "ito2"
+  //           db.tu_coleccion.find({"campo": /.busqueda./i});
+  const users = await UserModel.find({ email: /.palermo./ });
+
+  res.send({ users }); // trae un objeto de un arreglo de todos lo usuarios que macheen con el query
 });
 
 app.get("/api/user/:id", async (req, res) => {
@@ -91,7 +86,7 @@ app.put("/api/user/:id", async (req, res) => {
   res.send(!!updated);
 });
 
-// Desabilitar usuario, NO eliminar
+// Deshabilitar usuario, NO eliminar
 app.delete("/api/user/:id", async (req, res) => {
   // obtengo el id por parametro que va a ir en la siguiente linea
   try {
@@ -129,18 +124,31 @@ app.listen(PORT, () => {
   console.log(`Estoy corriendo en el puerto ${PORT}`);
 });
 
+// Un midleware es una funcion que se ejecuta entre que entras a una url y se ejecuta la funcion
+// la idea es que haga de barrera entre si tenes jsonwebtoken o no, si lo tenes y existe en la base de datos pasa
+
+// connectando con la db de mongo 3T
+// la db se va a generar cuando insertemos algo
+// const connectDB = async () => {
+//   try {
+//     await mongoose.connect(`mongodb://localhost:27017/test`);
+//     console.log("me conecte");
+//   } catch (error) {
+//     console.log(error);
+//   }
+// };
+
+// connectDB();
+
 // Esquemas:
 // Usuarios son los que vana atener permoisos para entrar a la db
 // Funciones: funciones pre-echas para pedirlas desde nuestro back o simplemente escribirlas en js
 // Tablas: es un esquema.. podemos tener colecciones de cualquier cosa... usuarios, comidas, productos, etc...
 
 // DUDAS:
-// quiero crear usuario y que no se repita
 // quiero encriptar contraseña (crear un hash), se hashea con una libreria
 // libreria para crear un token
 // que es __v ???
-// handle-bars sirve??
-// que es req, res????
 
 // Heroku no sabe como correr nuestra aplicacion
 // Con el Procfile le indicamos donde heroku tiene que correr la aplicacion

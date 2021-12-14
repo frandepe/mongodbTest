@@ -17,6 +17,7 @@ const UserSchema = new Schema({
   age: { type: Number },
   createdDate: { type: Date, default: new Date() },
   enabled: { type: Boolean, default: true },
+  token: String,
 });
 
 // Este metodo es para evitar traer algunos campos de la db
