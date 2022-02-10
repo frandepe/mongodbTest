@@ -23,7 +23,7 @@ const UserSchema = new Schema({
 // Este metodo es para evitar traer algunos campos de la db
 UserSchema.methods.toJSON = function () {
   // Campos a evitar
-  const { __v, password, _id, ...user } = this.toObject();
+  const { __v, _id, ...user } = this.toObject();
 
   //Campos a traer
   // para que me traiga el id sin el guion bajo

@@ -6,7 +6,12 @@ const PORT = process.env.PORT || 3100;
 const mongoose = require("mongoose");
 const { UserModel } = require("./schemas/User");
 const { generateJWT } = require("./utils/jwt");
+const { check } = require("express-validator");
+const { validateFields } = require("./middlewares/validateFields.middleware");
+const { jwtValidator } = require("./middlewares/jwt.middleware");
+const { encryptPassword, comparePasswords } = require("./utils/bcrypt");
 
+// Esto es para la variable de entorno
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
@@ -17,9 +22,31 @@ if (process.env.NODE_ENV !== "production") {
 // Hay que modificarlo de la siguiente manera (esta en el .env):
 const uri = process.env.PASSWORD;
 
-mongoose.connect(uri).then((resp) => {
-  console.log("me conecte");
-});
+const dbConnection = async () => {
+  try {
+    mongoose.connect(uri, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+
+    const db = mongoose.connection;
+    // el on es un evento que esta todo el tiempo escuchando la base de  datos, como el onClick por ej
+    db.on("error", (error) => {
+      console.log(error);
+    });
+
+    db.once("open", () => {
+      console.log("db open");
+    });
+
+    console.log("db online");
+  } catch (error) {
+    console.log(error);
+    throw new Error(error);
+  }
+};
+
+dbConnection();
 
 // config routes
 
@@ -29,24 +56,72 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors());
 
-// routes
-app.post("/api/user", async (req, res) => {
-  try {
-    const { email, password, age, firstName, lastName } = req.body;
-    const token = await generateJWT({ firstName, lastName, email });
-    console.log("token:", token);
-    const created = await new UserModel({
-      email,
-      password,
-      age,
-      firstName,
-      lastName,
-      token,
-    }).save();
-    res.send(created);
-  } catch (err) {
-    console.log(err.message);
-    res.send("Ocurrio un error", err);
+// Routes:
+
+// Registro
+app.post(
+  "/api/user",
+  [
+    // checkeamos si el email es el email correcto
+    // el check evalua lo que le pasamos por parametro,
+    // y se fija que en el body tenga un campo email
+    check("email", "Email invalido").notEmpty(),
+    check("password", "Password invalido").notEmpty(),
+    validateFields,
+  ],
+  async (req, res) => {
+    try {
+      const { email, password, age, firstName, lastName } = req.body;
+      const hashedPassowrd = encryptPassword(password);
+      const token = await generateJWT({ firstName, lastName, email });
+      console.log("token:", token);
+      const created = await new UserModel({
+        email,
+        password: hashedPassowrd,
+        age,
+        firstName,
+        lastName,
+        token,
+      }).save();
+
+      res.send(created);
+    } catch (err) {
+      console.log(err.message);
+      res.send("Ocurrio un error", err);
+    }
+  }
+);
+
+// Login
+app.post(
+  "/api/login",
+  [
+    check("email", "Email invalido").notEmpty().isEmail(),
+    check("password", "Password invalido").notEmpty(),
+    validateFields,
+  ],
+  async (req, res) => {
+    const { email, password } = req.body;
+    const user = await UserModel.findOne({ email });
+    const isValid = comparePasswords(password, user.password);
+    if (isValid) {
+      res.status(202).send({ data: user.token });
+    } else {
+      res.status(400).send({ message: "Email o contraseña invalidos" });
+    }
+  }
+);
+
+// Obtener un usuario
+app.get("/api/get-user", [jwtValidator], async (req, res) => {
+  let token = req.header("authorization");
+  token = token?.replace("Bearer ", "");
+  const user = await UserModel.findOne({ token });
+  const { firstName, lastName, age, email } = user;
+  if (user) {
+    res.send({ firstName, lastName, age, email });
+  } else {
+    res.send("No tenes token");
   }
 });
 
@@ -62,11 +137,13 @@ app.get("/api/user", async (req, res) => {
 });
 
 app.get("/api/find", async (req, res) => {
-  //busco usuarios que en su email contenga la cadena "ito2"
-  //           db.tu_coleccion.find({"campo": /.busqueda./i});
-  const users = await UserModel.find({ email: /.palermo./ });
-
-  res.send({ users }); // trae un objeto de un arreglo de todos lo usuarios que macheen con el query
+  try {
+    const users = await UserModel.find({ email: /.*pa.*/ });
+    res.send({ users });
+  } catch (error) {
+    res.send(error);
+  }
+  npm;
 });
 
 app.get("/api/user/:id", async (req, res) => {
@@ -146,9 +223,8 @@ app.listen(PORT, () => {
 // Tablas: es un esquema.. podemos tener colecciones de cualquier cosa... usuarios, comidas, productos, etc...
 
 // DUDAS:
-// quiero encriptar contraseña (crear un hash), se hashea con una libreria
-// libreria para crear un token
-// que es __v ???
+// Quiero que la contraseña tenga mas de 5 digitos
+// Quiero crear relaciones, que un usuario tenga relacion con un producto creado
 
 // Heroku no sabe como correr nuestra aplicacion
 // Con el Procfile le indicamos donde heroku tiene que correr la aplicacion
